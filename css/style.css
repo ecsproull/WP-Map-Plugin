@@ -1,0 +1,63 @@
+
+#content {
+     width:650px; 
+     margin-left:auto; 
+     margin-right:auto;
+     margin-top: 100px;
+}
+
+.w-250px {
+    width: 250px;
+}
+
+.w-75px {
+    width: 75px;
+}
+
+.w-100px {
+    width: 100px;
+}
+
+.mb-100px {
+    margin-bottom: 100px!important;
+}
+
+.mr-100px {
+    margin-right: 100px;
+}
+
+.submitbutton {
+    display:block;
+    width:27px; height:27px; 
+    background-repeat:no-repeat;
+    text-indent:-999px;
+    font-size:0px; 
+    line-height:0;
+    border-color: darkgray;
+    border-width: 1px;
+}
+
+.editImage {
+    background-image:url(edit.png);
+}
+
+.deleteImage {
+    background-image:url(delete.png); 
+}
+
+.sessionsImage {
+    background-image:url(sessions.png);
+}
+
+.attendeesImage {
+    background-image:url(attendees.png);
+}
+
+.addItem {
+    background-image:url(plusSmall.png);
+}
+
+.centerCheckBox {
+    padding-top: 1rem!important;
+    padding-right: 25px!important;
+}
