@@ -10,7 +10,7 @@ The plug-in is all in one file. There are the forms for CRUD the places and a sh
 
 I'd be glad to answer any questions.
 
-
+~~~
 CREATE TABLE `places` (
   `place_ID` int(11) NOT NULL AUTO_INCREMENT,
   `place_name` varchar(45) NOT NULL,
@@ -27,5 +27,5 @@ CREATE TABLE `places` (
   `place_hide_info` tinyint(4) DEFAULT 0,
   PRIMARY KEY (`place_ID`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8;
-
+~~~
 Next update will include displaying routing data on the map. 
