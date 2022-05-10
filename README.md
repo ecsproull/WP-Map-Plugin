@@ -28,4 +28,6 @@ CREATE TABLE `places` (
   PRIMARY KEY (`place_ID`)
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8;
 ~~~
-Next update will include displaying routing data on the map. 
+Next update will include displaying routing data on the map.
+
+Here is a link to doc that better explains the code: https://edandlinda.com/wordpress-tech/writing-a-map-plugin/
