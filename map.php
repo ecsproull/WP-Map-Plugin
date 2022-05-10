@@ -1,5 +1,4 @@
 <?php
-//namespace edsplaces;
 /**
  * Plugin Name: Map
  * Plugin URI: 
@@ -14,26 +13,26 @@
  * Domain Path: /languages
  */
 
-/**
-*  The add place form is also used to update a place.
-*  Thus it expects a Place to edit. When adding a place
-*  we can use this class to create a blank place.
+ /**
+* Adds the CSS that is used to style the admin side of the plug-in. 
+* Note the use of "admin_enqueue_scripts". It took me a while to out that 
+* that wp_enqueue_scripts adds scripts to the user side only. 
+* I like using bootstrap but this is a personal preference.
 */
- class Place {
-    public $place_ID;
-    public $place_name;
-    public $place_info;
-    public $place_lat;
-    public $place_lng;
-    public $place_icon_type;
-    public $place_address;
-    public $place_phone;
-    public $place_website;
-    public $place_arrive;
-    public $place_depart;
-    public $place_hide_info;
-    public $place_label;
+function add_map_scripts_and_css(){
+    wp_register_style('signup_bs_style', plugin_dir_url( __FILE__ ) . "bootstrap/css/bootstrap.min.css");
+    wp_enqueue_style('signup_bs_style');
+    wp_register_style('signup_style', plugin_dir_url( __FILE__ ) . "css/style.css");
+    wp_enqueue_style('signup_style');
+    wp_enqueue_script( 'api_key_js', plugin_dir_url( __FILE__ ) . 'ApiKeyGeo.js', false );
 }
+add_action('admin_enqueue_scripts', 'add_map_scripts_and_css');
+
+// Adds the one and only menu item for the plugin.
+function map_plugin_top_menu(){
+    add_menu_page('Map', 'Map', 'manage_options', __FILE__, 'map_settings_page', plugins_url('/WP-Map-Plugin/img/pug.png',__DIR__));
+ }
+ add_action('admin_menu','map_plugin_top_menu');
 
 /**
 * Register the endpoint for API call to get the mapped points.
@@ -43,7 +42,6 @@
 */
 add_action( 'rest_api_init', function () {
   register_rest_route( 'edsplaces/v1', '/places', array(
-    'schema' => 'edsplaces/get_schema',
     'methods' => 'GET',
     'callback' => 'get_trip_points',
     'permission_callback' => '__return_true'
@@ -64,30 +62,13 @@ function get_trip_points( $data ) {
     }
 }
 
-// Adds the one and only menu item for the plugin.
-function map_plugin_top_menu(){
-   add_menu_page('Map', 'Map', 'manage_options', __FILE__, 'map_settings_page', plugins_url('/map/img/pug.png',__DIR__));
-}
-add_action('admin_menu','map_plugin_top_menu');
-
 /**
-* Adds the CSS that is used to style the admin side of the plug-in. 
-* Note the use of "admin_enqueue_scripts". It took me a while to out that 
-* that wp_enqueue_scripts adds scripts to the user side only. 
-* I like using bootstrap but this is a personal preference.
+* Google map points are located by latitude and longitude. The point of these JS functions are to
+* take an address and retrieve the lat and lng for that address. The makeRequest is a generic html request function.
+* I'm pretty sure I borrowed this from the web somewhere so if you perfer another way of doing this, have at it.
+* But wait there are more JS functions below why are these up here? Great question! These are used on the 
+* administrative side and the ones below belong to the client side. More on that in the next comment.
 */
-function add_map_scripts_and_css(){
-    wp_register_style('signup_bs_style', plugin_dir_url( __FILE__ ) . "bootstrap/css/bootstrap.min.css");
-    wp_enqueue_style('signup_bs_style');
-    wp_register_style('signup_style', plugin_dir_url( __FILE__ ) . "css/style.css");
-    wp_enqueue_style('signup_style');
-    wp_enqueue_script( 'api_key_js', plugin_dir_url( __FILE__ ) . 'ApiKeyGeo.js', false );
-}
-add_action('admin_enqueue_scripts', 'add_map_scripts_and_css');
-
-// Google map points are located by latitude and longitude. The point of these JS functions are to
-// take an address and retrieve the lat and lng for that address. The makeRequest is a generic html request function.
-// I'm pretty sure I borrowed this from the web somewhere so if you perfer another way of doing this, have at it.
  function addLatLngScript() {
     ?>
     <script>
@@ -121,6 +102,7 @@ add_action('admin_enqueue_scripts', 'add_map_scripts_and_css');
     </script>
     <?php
 }
+
 // Here again note that we are using the "admin" version of print_scripts since the plug-in runs
 // on the admin side of things.
 add_action('admin_print_scripts', 'addLatLngScript');
@@ -145,7 +127,28 @@ function map_settings_page() {
     }
 }
 
-/** This is the set up for C & U in CRUD. */
+/**
+*  The add place form is also used to update a place.
+*  Thus it expects a Place to edit. When adding a place
+*  we can use this class to create a blank place.
+*/
+class Place {
+    public $place_ID;
+    public $place_name;
+    public $place_info;
+    public $place_lat;
+    public $place_lng;
+    public $place_icon_type;
+    public $place_address;
+    public $place_phone;
+    public $place_website;
+    public $place_arrive;
+    public $place_depart;
+    public $place_hide_info;
+    public $place_label;
+}
+
+/** This is the set up for C (create) & U (update) in CRUD. */
 function createOrEditPlace($place_ID) {
     global $wpdb;
     if ($place_ID == -1) {
@@ -157,14 +160,15 @@ function createOrEditPlace($place_ID) {
     }
 }
 
-/** This is the D part of CRUD */
+//////////// Functions for creating the Place forms //////////
+/** This is the D (delete) part of CRUD */
 function deletePlace() {
     global $wpdb;
     $affectedRows = $wpdb->delete("places", array("place_ID" => $_POST['deletePlace']));
     updateMapMessage($affectedRows);
 }
 
-/** This is the U part of CRUD */
+/** This is the U (update) part of CRUD */
 function submitPlace() {
     global $wpdb;
     if (!isset($_POST['place_hide_info'])) {
@@ -198,7 +202,7 @@ function loadPlaceSelection() {
     createPlaceSelectionForm($places);
 }
 
-//////////////////////// HTML Functions /////////////////////////////
+//////////////////////// HTML Form Functions /////////////////////////////
 
 // Display after an edit.
 function updateMapMessage($rowsUpdated) {
@@ -383,33 +387,34 @@ function display_eds_map_func($atts) {
         populateMap(map);
     }
 
-    function populateMap(map) {
-        makeRequest('https://edandlinda.com/wp-json/edsplaces/v1/places', function (data) {
-            var data = JSON.parse(data.response);
-            for (var i = 0; i < data.length; i++) {
-                var place = data[i];
-                var geocoder = new google.maps.Geocoder();
-                var infowindow = new google.maps.InfoWindow();
-                var content = '<div class="infoWindow"><strong>' + place.place_name + '</strong><br>'
-                              + "<a href='tel:" + place.place_phone +"'>" + place.place_phone + '</a>'
-                              + '<p>' + place.place_info + '</p></div>' ;
-                var position = new google.maps.LatLng(parseFloat(place.place_lat), parseFloat(place.place_lng));
-                marker = new google.maps.Marker({
-                    position: position,
-                    map,
-                    title: place.place_name,
-                    label: place.place_label
-                });
+function populateMap(map) {
+    // TODO: This call will need to go to your website, not mine. :)
+    var hostroot = 'http://localhost/wp'
+    makeRequest(hostroot + '/wp-json/edsplaces/v1/places', function (data) {
+        var data = JSON.parse(data.response);
+        for (var i = 0; i < data.length; i++) {
+            var place = data[i];
+            var infowindow = new google.maps.InfoWindow();
+            var content = '<div class="infoWindow"><strong><a href=\"' + place.place_website + '\" >' + place.place_name + '</a></strong><br>'
+                            + "<a href='tel:" + place.place_phone +"'>" + place.place_phone + '</a>'
+                            + '<p>' + place.place_info + '</p></div>' ;
+            var position = new google.maps.LatLng(parseFloat(place.place_lat), parseFloat(place.place_lng));
+            marker = new google.maps.Marker({
+                position: position,
+                map,
+                title: place.place_name,
+                label: place.place_label
+            });
 
-                google.maps.event.addListener(marker, 'click', (function (marker, content, infoWindow) {
-                    return function () {
-                        infowindow.setContent(content);
-                        infowindow.open(map, marker);
-                    };
-                })(marker, content, infowindow));
-            }
-        });
-    }
+            google.maps.event.addListener(marker, 'click', (function (marker, content, infoWindow) {
+                return function () {
+                    infowindow.setContent(content);
+                    infowindow.open(map, marker);
+                };
+            })(marker, content, infowindow));
+        }
+    });
+}
 </script>
 </head>
 <body>
@@ -418,4 +423,3 @@ function display_eds_map_func($atts) {
 <?php
 }
 ?>
-
