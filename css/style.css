@@ -18,6 +18,9 @@
     width: 100px;
 }
 
+.w-300px {
+    width: 300px;
+}
 .mb-100px {
     margin-bottom: 100px!important;
 }
