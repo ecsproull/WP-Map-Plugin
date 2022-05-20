@@ -24,6 +24,8 @@
  */
 
 require 'includes/class-place.php';
+$map_key_table = 'eds_map_keys';
+$places_table  = 'eds_map_places';
 
 /**
  * Adds styles.
@@ -40,7 +42,6 @@ function add_map_scripts_and_css() {
 	wp_enqueue_style( 'signup_bs_style' );
 	wp_register_style( 'signup_style', plugin_dir_url( __FILE__ ) . 'css/style.css', array(), 1 );
 	wp_enqueue_style( 'signup_style' );
-	wp_enqueue_script( 'api_key_js', plugin_dir_url( __FILE__ ) . 'ApiKeyGeo.js', false, 1 );
 }
 add_action( 'admin_enqueue_scripts', 'add_map_scripts_and_css' );
 
@@ -50,7 +51,8 @@ add_action( 'admin_enqueue_scripts', 'add_map_scripts_and_css' );
  * @return void
  */
 function map_plugin_top_menu() {
-	add_menu_page( 'Map', 'Map', 'manage_options', __FILE__, 'map_settings_page', plugins_url( '/WP-Map-Plugin/img/pug.png', __DIR__ ) );
+	add_menu_page( 'Map', 'Map', 'manage_options', 'mapsettings', 'map_settings_page', plugins_url( '/WP-Map-Plugin/img/pug.png', __DIR__ ) );
+	add_submenu_page( 'mapsettings', 'Map Keys', 'Map Keys', 'manage_options', 'mapkeys', 'map_keys_page' );
 }
 add_action( 'admin_menu', 'map_plugin_top_menu' );
 
@@ -77,6 +79,56 @@ add_action(
 	}
 );
 
+register_activation_hook( __FILE__, 'eds_google_map_plugin_function' );
+/**
+ * Activation function that creates the database tables.
+ *
+ * @return void
+ */
+function eds_google_map_plugin_function() {
+	global $wpdb;
+	if ( $wpdb->get_var( 'SHOW TABLES LIKE "eds_map_keys"' ) !== 'eds_map_keys' ) {
+		$wpdb->query(
+			'CREATE TABLE `eds_map_keys` (
+			`key_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+			`key_label` varchar(45) NOT NULL,
+			`key_type` varchar(10) NOT NULL,
+			`key_value` varchar(45) NOT NULL,
+			PRIMARY KEY (`key_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;'
+		);
+
+		$wpdb->query(
+			'INSERT INTO `eds_map_keys` (
+			`key_label`,
+			`key_type`,
+			`key_value`
+			) VALUES ( "Geo:", "geo_key", " " ),
+			( "Map:", "map_key", " " );'
+		);
+	}
+
+	if ( $wpdb->get_var( 'SHOW TABLES LIKE "eds_map_places"' ) !== 'eds_map_places' ) {
+		$wpdb->query(
+			'CREATE TABLE `eds_map_places` (
+			`place_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+			`place_name` varchar(45) NOT NULL,
+			`place_info` text NOT NULL,
+			`place_lat` float NOT NULL,
+			`place_lng` float NOT NULL,
+			`place_label` int(11) DEFAULT NULL,
+			`place_icon_type` tinyint(4) DEFAULT "0",
+			`place_address` varchar(100) NOT NULL,
+			`place_phone` varchar(45) NOT NULL,
+			`place_website` varchar(150) NOT NULL,
+			`place_arrive` date DEFAULT NULL,
+			`place_depart` date DEFAULT NULL,
+			`place_hide_info` tinyint(4) DEFAULT "0",
+			PRIMARY KEY (`place_id`)) 
+			ENGINE=InnoDB DEFAULT CHARSET=utf8;'
+		);
+	}
+}
 /**
  * The actual function that does the work of retrieving the points.
  *
@@ -85,8 +137,15 @@ add_action(
  */
 function get_trip_points( $place ) {
 	try {
-		global $wpdb;
-		$results = $wpdb->get_results( 'SELECT * FROM places', OBJECT );
+		global $wpdb, $places_table;
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * FROM %1s',
+				$places_table
+			),
+			OBJECT
+		);
+
 		return $results;
 
 	} catch ( Exception $e ) {
@@ -102,6 +161,15 @@ function get_trip_points( $place ) {
  * administrative side and the ones below belong to the client side. More on that in the next comment.
  */
 function add_lat_lng_script() {
+	global $wpdb, $map_key_table;
+	$keys = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT * FROM %1s WHERE key_type = "geo_key";',
+			$map_key_table
+		),
+		OBJECT
+	);
+	$map_key_geo = $keys[0]->key_value;
 	?>
 	<script>
 		function makeRequest(url, callback) {
@@ -122,7 +190,7 @@ function add_lat_lng_script() {
 
 		function updateLatLng() {
 			var address = document.getElementById("addr");
-			var url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + address.value.replaceAll(' ', '+') + "&key=" + mapkeyGeo;
+			var url = "https://maps.googleapis.com/maps/api/geocode/json?address=" + address.value.replaceAll(' ', '+') + "&key=" + '<?php echo esc_html( $map_key_geo ); ?>';
 			makeRequest(url, function (results) {
 				var data = JSON.parse(results.response);
 				var lat = document.getElementById("lat");
@@ -149,9 +217,7 @@ function map_settings_page() {
 	$mynonce = wp_create_nonce( 'my-nonce' );
 	$post    = wp_unslash( $_POST );
 
-	echo var_dump( $_POST );
-
-	if ( isset( $_POST['mynonce'] ) ) {
+	if ( isset( $post['mynonce'] ) ) {
 		$my_nonce = $post['mynonce'];
 		if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
 			unset( $post['mynonce'] );
@@ -170,6 +236,64 @@ function map_settings_page() {
 	}
 }
 
+/**
+ * Creates the page to enter Google Map keys.
+ *
+ * @return void
+ */
+function map_keys_page() {
+	global $wpdb, $map_key_table;
+	$mynonce = wp_create_nonce( 'my-nonce' );
+	$post    = wp_unslash( $_POST );
+	if ( isset( $post['mynonce'] ) ) {
+		$my_nonce = $post['mynonce'];
+		if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
+			if ( isset( $post['submit'] ) ) {
+				$where = array( 'key_type' => $post['submit'] );
+				$key   = array( 'key_value' => $post[ $post['submit'] ] );
+				$rows = $wpdb->update(
+					$map_key_table,
+					$key,
+					$where
+				);
+
+				?>
+				<div class='text-center mt-4'>
+					<h1><?php echo esc_html( $post['submit'] ); ?> was updated.</h1>
+				</div>
+				<?php
+			}
+		}
+	}
+
+	$keys = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %1s;', $map_key_table ), OBJECT );
+	?>
+	<form  method="POST">
+		<div id="content" class="container">
+			<table class="mb-100px table table-striped mr-auto ml-auto">
+				<?php
+				foreach ( $keys as $key ) {
+					?>
+					<tr><td class="text-right mr-2"><label><?php echo esc_html( $key->key_label ); ?></label></td>
+						<td><input  style="width: 350px;"
+									type="text"
+									name='<?php echo esc_html( $key->key_type ); ?>'
+									value='<?php echo esc_html( $key->key_value ); ?>'
+									placeholder="Enter Key" /> </td>
+						<td><input 	class='submitbutton addItem'
+									type="submit"
+									value='<?php echo esc_html( $key->key_type ); ?>'
+									name="submit"></td>
+					</tr>
+					<?php
+				}
+				?>
+			</table>
+		</div>
+		<input type="hidden" name="mynonce" value="<?php echo esc_html( $mynonce ); ?>">
+	</form>
+	<?php
+}
 
 /**
  * This is the set up for C (create) & U (update) in CRUD
@@ -180,13 +304,14 @@ function map_settings_page() {
  * @return void
  */
 function create_or_edit_place( $place_id, $mynonce ) {
-	global $wpdb;
+	global $wpdb, $places_table;
 	if ( -1 === $place_id ) {
 		create_place_form( new Place(), $mynonce );
 	} else {
 		$places = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT * from places where place_id = %s',
+				'SELECT * from %1s where place_id = %s',
+				$places_table,
 				$place_id
 			),
 			OBJECT
@@ -249,8 +374,15 @@ function submit_place( $post ) {
  * @return void
  */
 function load_place_selection( $mynonce ) {
-	global $wpdb;
-	$places = $wpdb->get_results( 'SELECT * from places', OBJECT );
+	global $wpdb, $places_table;
+	$places = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT * from %1s',
+			$places_table,
+		),
+		OBJECT
+	);
+
 	create_place_selection_form( $places, $mynonce );
 }
 
@@ -293,7 +425,6 @@ function update_map_message( $rows_updated ) {
  * @return void
  */
 function create_place_selection_form( $places, $mynonce ) {
-	echo var_dump( $places );
 	?>
 	<form  method="POST">
 		<div id="content" class="container">
@@ -377,26 +508,6 @@ function create_place_form( $place, $mynonce ) {
 	<?php
 }
 
-/**
- * To keep the keys outside of the code we need to include the ApiKeyMap.js.
- * Again I point out that we are including this for client side use and use wp_enqueue_script.
- *
- * I might also point out that this key is still exposed to anyone that can hit F12 on the page
- * and then locate it. Always scope your client keys to just the domain that you are using them from.
- * That scope is set on the Google developers site where you got the key.
- *
- * If you are wondering why I keep the keys in a separate file, is to make copying the map.php file easier.
- * Each installation has different keys and I perfer keeping them in a file and just leave them alone. Thus
- * all that needs copied is the map.php file.
- *
- * @return void
- */
-function add_wp_map_scripts_and_css() {
-	wp_enqueue_script( 'my-js', plugin_dir_url( __FILE__ ) . 'ApiKeyMap.js', false, 1 );
-}
-add_action( 'wp_enqueue_scripts', 'add_wp_map_scripts_and_css' );
-
-
 add_shortcode( 'display_eds_map', 'display_eds_map_func' );
 /**
  * This adds the shortcode that is used in the client to display the map.
@@ -404,6 +515,15 @@ add_shortcode( 'display_eds_map', 'display_eds_map_func' );
  * @return void
  */
 function display_eds_map_func() {
+	global $wpdb, $map_key_table;
+	$keys = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT * FROM %1s WHERE key_type = "map_key";',
+			$map_key_table
+		),
+		OBJECT
+	);
+	$mapkey = $keys[0]->key_value;
 	?>
 	<style>
 
@@ -422,7 +542,7 @@ function display_eds_map_func() {
 	// Dynamic scripts behave as “async” by default. 
 	document.addEventListener('DOMContentLoaded', () => {
 		document.head.appendChild(document.createElement('script'))
-			.src = "https://maps.googleapis.com/maps/api/js?key=" + mapkey + "&callback=initMap&v=weekly";
+			.src = "https://maps.googleapis.com/maps/api/js?key=" + '<?php echo esc_html( $mapkey ); ?>' + "&callback=initMap&v=weekly";
 	});
 
 	// Generic function for making calls back to the server.
