@@ -250,7 +250,9 @@ function map_keys_page() {
 		if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
 			if ( isset( $post['submit'] ) ) {
 				$where = array( 'key_type' => $post['submit'] );
+				echo var_dump($where);
 				$key   = array( 'key_value' => $post[ $post['submit'] ] );
+				echo var_dump($key);
 				$rows = $wpdb->update(
 					$map_key_table,
 					$key,
