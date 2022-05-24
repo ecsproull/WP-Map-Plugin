@@ -23,6 +23,7 @@
  * Domain Path: /languages
  */
 
+require 'includes/class-routes.php';
 require 'includes/class-place.php';
 $map_key_table = 'eds_map_keys';
 $places_table  = 'eds_map_places';
@@ -79,6 +80,26 @@ add_action(
 	}
 );
 
+/**
+ * Register the endpoint for API call to get the route points.
+ *
+ *  @return void
+ */
+add_action(
+	'rest_api_init',
+	function () {
+		register_rest_route(
+			'edsroute/v1',
+			'/points',
+			array(
+				'methods'             => 'GET',
+				'callback'            => 'get_route_points',
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+);
+
 register_activation_hook( __FILE__, 'eds_google_map_plugin_function' );
 /**
  * Activation function that creates the database tables.
@@ -93,7 +114,7 @@ function eds_google_map_plugin_function() {
 			`key_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
 			`key_label` varchar(45) NOT NULL,
 			`key_type` varchar(10) NOT NULL,
-			`key_value` varchar(45) NOT NULL,
+			`key_value` varchar(55) NOT NULL,
 			PRIMARY KEY (`key_id`)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;'
 		);
@@ -104,7 +125,8 @@ function eds_google_map_plugin_function() {
 			`key_type`,
 			`key_value`
 			) VALUES ( "Geo:", "geo_key", " " ),
-			( "Map:", "map_key", " " );'
+			( "Map:", "map_key", " " ),
+			( "Dir:", "dir_key", " " );'
 		);
 	}
 
@@ -128,14 +150,40 @@ function eds_google_map_plugin_function() {
 			ENGINE=InnoDB DEFAULT CHARSET=utf8;'
 		);
 	}
+
+	if ( $wpdb->get_var( 'SHOW TABLES LIKE "eds_map_route_segment_points"' ) !== 'eds_map_route_segment_points' ) {
+		$wpdb->query(
+			'CREATE TABLE `eds_map_route_segment_points` (
+			`points_id` int(11) NOT NULL AUTO_INCREMENT,
+			`points_segment_id` varchar(45) NOT NULL,
+			`points_lat` float NOT NULL,
+			`points_lng` float NOT NULL,
+			PRIMARY KEY (`points_id`)
+		) ENGINE=InnoDB AUTO_INCREMENT=5555 DEFAULT CHARSET=utf8mb4;'
+		);
+	}
+
+	if ( $wpdb->get_var( 'SHOW TABLES LIKE "eds_map_route_segments"' ) !== 'eds_map_route_segments' ) {
+		$wpdb->query(
+			'CREATE TABLE `eds_map_route_segments` (
+			`segment_id` varchar(45) NOT NULL,
+			`segment_start_lat` float NOT NULL,
+			`segment_start_lng` float NOT NULL,
+			`segment_end_lat` float NOT NULL,
+			`segment_end_lng` float NOT NULL,
+			`segment_dist_miles` decimal(10,0) NOT NULL,
+			`segment_time` time NOT NULL,
+			PRIMARY KEY (`segment_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;'
+		);
+	}
 }
 /**
  * The actual function that does the work of retrieving the points.
  *
- * @param  mixed $place Unused parameter, TODO verify if it can be removed.
  * @return array The results of the query.
  */
-function get_trip_points( $place ) {
+function get_trip_points() {
 	try {
 		global $wpdb, $places_table;
 		$results = $wpdb->get_results(
@@ -147,6 +195,36 @@ function get_trip_points( $place ) {
 		);
 
 		return $results;
+
+	} catch ( Exception $e ) {
+		return $e->getMessage();
+	}
+}
+
+/**
+ * The actual function that does the work of retrieving the route points.
+ *
+ * @return array The results of the query.
+ */
+function get_route_points() {
+	try {
+		$router = new Routes();
+		$places = get_places();
+		if ( is_countable( $places ) ) {
+			$place_count = count( $places );
+			$timezone = new DateTimeZone( 'America/Phoenix' );
+			$dt       = new DateTime( 'now', $timezone );
+			if ( $place_count > 1 ) {
+				for ( $i = 1; $i < $place_count; $i++ ) {
+					$dt2 = new DateTime( $places[ $i ]->place_arrive );
+					if ( $dt > $dt2 ) {
+						$router->store_points( $places[ $i - 1 ]->place_lat, $places[ $i - 1 ]->place_lng, $places[ $i ]->place_lat, $places[ $i ]->place_lng );
+					}
+				}
+			}
+		}
+
+		return $router->get_route_points();
 
 	} catch ( Exception $e ) {
 		return $e->getMessage();
@@ -250,9 +328,7 @@ function map_keys_page() {
 		if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
 			if ( isset( $post['submit'] ) ) {
 				$where = array( 'key_type' => $post['submit'] );
-				echo var_dump($where);
 				$key   = array( 'key_value' => $post[ $post['submit'] ] );
-				echo var_dump($key);
 				$rows = $wpdb->update(
 					$map_key_table,
 					$key,
@@ -331,8 +407,8 @@ function create_or_edit_place( $place_id, $mynonce ) {
  * @return void
  */
 function delete_place( $post ) {
-	global $wpdb;
-	$affected_rows = $wpdb->delete( 'places', array( 'place_id' => $post['deletePlace'] ) );
+	global $wpdb, $places_table;
+	$affected_rows = $wpdb->delete( $places_table, array( 'place_id' => $post['deletePlace'] ) );
 	update_map_message( $affected_rows );
 }
 
@@ -343,7 +419,7 @@ function delete_place( $post ) {
  * @return void
  */
 function submit_place( $post ) {
-	global $wpdb;
+	global $wpdb, $places_table;
 	if ( ! isset( $post['place_hide_info'] ) ) {
 		$post['place_hide_info'] = 0;
 	} else {
@@ -360,7 +436,7 @@ function submit_place( $post ) {
 		$where['place_id'] = $post['place_id'];
 		unset( $post['place_id'] );
 		$affected_rows = $wpdb->update(
-			'places',
+			$places_table,
 			$post,
 			$where
 		);
@@ -370,21 +446,31 @@ function submit_place( $post ) {
 }
 
 /**
+ * Helper function to get places.
+ *
+ * @return List of places from the database.
+ */
+function get_places() {
+	global $wpdb, $places_table;
+	$places = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT * from %1s ORDER BY place_label;',
+			$places_table,
+		),
+		OBJECT
+	);
+
+	return $places;
+}
+
+/**
  * This is the R part where we retrive our places to edit them.
  *
  * @param int $mynonce Security token.
  * @return void
  */
 function load_place_selection( $mynonce ) {
-	global $wpdb, $places_table;
-	$places = $wpdb->get_results(
-		$wpdb->prepare(
-			'SELECT * from %1s',
-			$places_table,
-		),
-		OBJECT
-	);
-
+	$places = get_places();
 	create_place_selection_form( $places, $mynonce );
 }
 
@@ -598,11 +684,26 @@ function populateMap(map) {
 							+ "<a href='tel:" + place.place_phone +"'>" + place.place_phone + '</a>'
 							+ '<p>' + place.place_info + '</p></div>' ;
 			var position = new google.maps.LatLng(parseFloat(place.place_lat), parseFloat(place.place_lng));
+			var today = new Date();
+			var arriveDateParts = place.place_arrive.split('-');
+			var arriveDate = new Date(
+				parseInt(arriveDateParts[0]),
+				parseInt(arriveDateParts[1] - 1),
+				parseInt(arriveDateParts[2])
+			);
+			//var root = 'http://localhost/wp';
+			var root = 'https://edandlinda.com';
+			var iconPath = root + '/wp-content/plugins/WP-Map-Plugin/img/DarkGreen.png';
+			if ( arriveDate >= today) {
+				iconPath =  root + '/wp-content/plugins/WP-Map-Plugin/img/Red.png'
+			}
+
 			marker = new google.maps.Marker({
 				position: position,
 				map,
 				title: place.place_name,
-				label: place.place_label
+				label: place.place_label,
+				icon: iconPath
 			});
 
 			google.maps.event.addListener(marker, 'click', (function (marker, content, infoWindow) {
@@ -612,6 +713,24 @@ function populateMap(map) {
 				};
 			})(marker, content, infowindow));
 		}
+	});
+
+	makeRequest(hostroot + '/wp-json/edsroute/v1/points', function (data) {
+		var data = JSON.parse(data.response);
+		var values = [];
+		for (var i = 0; i < data.length; i++) {
+			values[i] = { lat: parseFloat(data[i].points_lat), lng: parseFloat(data[i].points_lng) }
+		}
+
+		const route = new google.maps.Polyline({
+			path: values,
+			geodesic: true,
+			strokeColor: "#FF0000",
+			strokeOpacity: 1.0,
+			strokeWeight: 4,
+		});
+
+		route.setMap(map);
 	});
 }
 </script>
