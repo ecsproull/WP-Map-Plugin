@@ -23,6 +23,7 @@
  * Domain Path: /languages
  */
 
+require 'includes/class-keys.php';
 require 'includes/class-routes.php';
 require 'includes/class-place.php';
 $map_key_table = 'eds_map_keys';
@@ -53,7 +54,7 @@ add_action( 'admin_enqueue_scripts', 'add_map_scripts_and_css' );
  */
 function map_plugin_top_menu() {
 	add_menu_page( 'Map', 'Map', 'manage_options', 'mapsettings', 'map_settings_page', plugins_url( '/WP-Map-Plugin/img/pug.png', __DIR__ ) );
-	add_submenu_page( 'mapsettings', 'Map Keys', 'Map Keys', 'manage_options', 'mapkeys', 'map_keys_page' );
+	add_submenu_page( 'mapsettings', 'Map Keys', 'Map Keys', 'manage_options', 'mapkeys', 'Keys::keys_menu_handler' );
 }
 add_action( 'admin_menu', 'map_plugin_top_menu' );
 
@@ -314,64 +315,6 @@ function map_settings_page() {
 	}
 }
 
-/**
- * Creates the page to enter Google Map keys.
- *
- * @return void
- */
-function map_keys_page() {
-	global $wpdb, $map_key_table;
-	$mynonce = wp_create_nonce( 'my-nonce' );
-	$post    = wp_unslash( $_POST );
-	if ( isset( $post['mynonce'] ) ) {
-		$my_nonce = $post['mynonce'];
-		if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
-			if ( isset( $post['submit'] ) ) {
-				$where = array( 'key_type' => $post['submit'] );
-				$key   = array( 'key_value' => $post[ $post['submit'] ] );
-				$rows = $wpdb->update(
-					$map_key_table,
-					$key,
-					$where
-				);
-
-				?>
-				<div class='text-center mt-4'>
-					<h1><?php echo esc_html( $post['submit'] ); ?> was updated.</h1>
-				</div>
-				<?php
-			}
-		}
-	}
-
-	$keys = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %1s;', $map_key_table ), OBJECT );
-	?>
-	<form  method="POST">
-		<div id="content" class="container">
-			<table class="mb-100px table table-striped mr-auto ml-auto">
-				<?php
-				foreach ( $keys as $key ) {
-					?>
-					<tr><td class="text-right mr-2"><label><?php echo esc_html( $key->key_label ); ?></label></td>
-						<td><input  style="width: 350px;"
-									type="text"
-									name='<?php echo esc_html( $key->key_type ); ?>'
-									value='<?php echo esc_html( $key->key_value ); ?>'
-									placeholder="Enter Key" /> </td>
-						<td><input 	class='submitbutton addItem'
-									type="submit"
-									value='<?php echo esc_html( $key->key_type ); ?>'
-									name="submit"></td>
-					</tr>
-					<?php
-				}
-				?>
-			</table>
-		</div>
-		<input type="hidden" name="mynonce" value="<?php echo esc_html( $mynonce ); ?>">
-	</form>
-	<?php
-}
 
 /**
  * This is the set up for C (create) & U (update) in CRUD
