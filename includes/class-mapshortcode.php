@@ -100,8 +100,8 @@ class MapShortcode extends EdsMapBase {
 
 		function populateMap(map) {
 			// TODO: This call will need to go to your website, not mine. :)
-			var hostroot = 'http://localhost/wp';
-			//var hostroot = 'https://edandlinda.com';
+			//var hostroot = 'http://localhost/wp';
+			var hostroot = 'https://edandlinda.com';
 			makeRequest(hostroot + '/wp-json/edsplaces/v1/places', function (data) {
 				var data = JSON.parse(data.response);
 				for (var i = 0; i < data.length; i++) {
@@ -109,7 +109,9 @@ class MapShortcode extends EdsMapBase {
 					var infowindow = new google.maps.InfoWindow();
 					var content = '<div class="infoWindow"><strong><a href=\"' + place.place_website + '\" >' + place.place_name + '</a></strong><br>'
 									+ "<a href='tel:" + place.place_phone +"'>" + place.place_phone + '</a>'
-									+ '<p>' + place.place_info + '</p></div>' ;
+									+ '<p>' + place.place_info + '</p><br>'
+									+ '<p>Arrive: ' + place.place_arrive + '</p>'
+									+ '<p>Depart: ' + place.place_depart + '</p></div>' ;
 					var position = new google.maps.LatLng(parseFloat(place.place_lat), parseFloat(place.place_lng));
 					var today = new Date();
 					var arriveDateParts = place.place_arrive.split('-');
