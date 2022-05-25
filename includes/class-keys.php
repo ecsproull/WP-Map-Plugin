@@ -12,16 +12,15 @@
 /**
  * Class to manage the api keys..
  */
-class Keys {
+class Keys extends EdsMapBase {
 
 	/**
 	 * Entry point for an admin menu item.
 	 *
 	 * @return void
 	 */
-	public static function keys_menu_handler() {
+	public function keys_menu_handler() {
 		global $wpdb;
-		$map_key_table = 'eds_map_keys';
 		$mynonce = wp_create_nonce( 'my-nonce' );
 		$post    = wp_unslash( $_POST );
 		if ( isset( $post['mynonce'] ) ) {
@@ -31,7 +30,7 @@ class Keys {
 					$where = array( 'key_type' => $post['submit'] );
 					$key   = array( 'key_value' => $post[ $post['submit'] ] );
 					$rows = $wpdb->update(
-						$map_key_table,
+						self::MAP_KEY_TABLE,
 						$key,
 						$where
 					);
@@ -45,7 +44,7 @@ class Keys {
 			}
 		}
 
-		$keys = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %1s;', $map_key_table ), OBJECT );
+		$keys = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %1s;', self::MAP_KEY_TABLE ), OBJECT );
 		?>
 		<form  method="POST">
 			<div id="content" class="container">
