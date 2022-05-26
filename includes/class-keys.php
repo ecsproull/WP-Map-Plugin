@@ -21,26 +21,22 @@ class Keys extends EdsMapBase {
 	 */
 	public function keys_menu_handler() {
 		global $wpdb;
-		$mynonce = wp_create_nonce( 'my-nonce' );
-		$post    = wp_unslash( $_POST );
-		if ( isset( $post['mynonce'] ) ) {
-			$my_nonce = $post['mynonce'];
-			if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
-				if ( isset( $post['submit'] ) ) {
-					$where = array( 'key_type' => $post['submit'] );
-					$key   = array( 'key_value' => $post[ $post['submit'] ] );
-					$rows = $wpdb->update(
-						self::MAP_KEY_TABLE,
-						$key,
-						$where
-					);
+		$post = wp_unslash( $_POST );
+		if ( isset( $post['mynonce'] ) && wp_verify_nonce( $post['mynonce'], 'keys_menu' ) ) {
+			if ( isset( $post['submit'] ) ) {
+				$where = array( 'key_type' => $post['submit'] );
+				$key   = array( 'key_value' => $post[ $post['submit'] ] );
+				$rows = $wpdb->update(
+					self::MAP_KEY_TABLE,
+					$key,
+					$where
+				);
 
-					?>
-					<div class='text-center mt-4'>
-						<h1><?php echo esc_html( $post['submit'] ); ?> was updated.</h1>
-					</div>
-					<?php
-				}
+				?>
+				<div class='text-center mt-4'>
+					<h1><?php echo esc_html( $post['submit'] ); ?> was updated.</h1>
+				</div>
+				<?php
 			}
 		}
 
@@ -68,7 +64,7 @@ class Keys extends EdsMapBase {
 					?>
 				</table>
 			</div>
-			<input type="hidden" name="mynonce" value="<?php echo esc_html( $mynonce ); ?>">
+			<?php wp_nonce_field( 'keys_menu', 'mynonce' ); ?>
 		</form>
 		<?php
 	}

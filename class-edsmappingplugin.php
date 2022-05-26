@@ -35,7 +35,7 @@ require 'includes/class-routes.php';
 /**
  * Main map class.
  */
-class EdsMapingPlugin {
+class EdsMappingPlugin {
 
 	/**
 	 * __construct
@@ -111,5 +111,5 @@ class EdsMapingPlugin {
 	}
 }
 
-$edsmap = new EdsMapingPlugin();
+$edsmap = new EdsMappingPlugin();
 

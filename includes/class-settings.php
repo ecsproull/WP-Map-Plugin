@@ -31,25 +31,22 @@ class Settings extends EdsMapBase {
 	 * @return void
 	 */
 	public function map_settings() {
-		$mynonce = wp_create_nonce( 'my-nonce' );
-		$post    = wp_unslash( $_POST );
+		$post = wp_unslash( $_POST );
 
-		if ( isset( $post['mynonce'] ) ) {
-			$my_nonce = $post['mynonce'];
-			if ( wp_verify_nonce( $my_nonce, 'my-nonce' ) ) {
-				unset( $post['mynonce'] );
-				if ( isset( $post['submitPlace'] ) ) {
-					$this->submit_place( $post );
-				} elseif ( isset( $post['selectPlace'] ) ) {
-					$this->load_place_selection( $my_nonce );
-				} elseif ( isset( $post['editPlace'] ) ) {
-					$this->create_or_edit_place( $post['editPlace'], $my_nonce );
-				} elseif ( isset( $post['deletePlace'] ) ) {
-					$this->delete_place( $post );
-				}
+		if ( isset( $post['mynonce'] ) && wp_verify_nonce( $post['mynonce'], 'places' ) ) {
+			unset( $post['mynonce'] );
+			unset( $post['_wp_http_referer'] );
+			if ( isset( $post['submitPlace'] ) ) {
+				$this->submit_place( $post );
+			} elseif ( isset( $post['selectPlace'] ) ) {
+				$this->load_place_selection();
+			} elseif ( isset( $post['editPlace'] ) ) {
+				$this->create_or_edit_place( $post['editPlace'] );
+			} elseif ( isset( $post['deletePlace'] ) ) {
+				$this->delete_place( $post );
 			}
 		} else {
-			$this->create_or_edit_place( -1, $mynonce );
+			$this->create_or_edit_place( -1 );
 		}
 	}
 
@@ -57,14 +54,13 @@ class Settings extends EdsMapBase {
 	 * This is the set up for C (create) & U (update) in CRUD
 	 *
 	 * @param mixed $place_id The id of the palce to edit.
-	 * @param int   $mynonce The security token.
 	 *
 	 * @return void
 	 */
-	private function create_or_edit_place( $place_id, $mynonce ) {
+	private function create_or_edit_place( $place_id ) {
 		global $wpdb;
 		if ( -1 === $place_id ) {
-			$this->create_place_form( new Place(), $mynonce );
+			$this->create_place_form( new Place(), );
 		} else {
 			$places = $wpdb->get_results(
 				$wpdb->prepare(
@@ -75,7 +71,7 @@ class Settings extends EdsMapBase {
 				OBJECT
 			);
 
-			$this->create_place_form( $places[0], $mynonce );
+			$this->create_place_form( $places[0] );
 		}
 	}
 
@@ -146,12 +142,11 @@ class Settings extends EdsMapBase {
 	/**
 	 * This is the R part where we retrive our places to edit them.
 	 *
-	 * @param int $mynonce Security token.
 	 * @return void
 	 */
-	private function load_place_selection( $mynonce ) {
+	private function load_place_selection() {
 		$places = $this->get_places();
-		$this->create_place_selection_form( $places, $mynonce );
+		$this->create_place_selection_form( $places );
 	}
 
 
@@ -189,10 +184,9 @@ class Settings extends EdsMapBase {
 	 * Creates a list of places to select one to edit.
 	 *
 	 * @param array $places The list of places to select from.
-	 * @param int   $mynonce Security token.
 	 * @return void
 	 */
-	private function create_place_selection_form( $places, $mynonce ) {
+	private function create_place_selection_form( $places ) {
 		?>
 		<form  method="POST">
 			<div id="content" class="container">
@@ -209,7 +203,7 @@ class Settings extends EdsMapBase {
 					?>
 				</table>
 			</div>
-			<input type="hidden" name="mynonce" value="<?php echo esc_html( $mynonce ); ?>">
+			<?php wp_nonce_field( 'places', 'mynonce' ); ?>
 		</form>
 		</div>
 			<input class="btn btn-danger" style="cursor:pointer;" type="button" onclick="   window.history.go(-0);" value="Back">
@@ -221,10 +215,9 @@ class Settings extends EdsMapBase {
 	 * Create a form to update a place.
 	 *
 	 * @param  mixed $place The data about the place to be edited.
-	 * @param int   $mynonce Security token.
 	 * @return void
 	 */
-	private function create_place_form( $place, $mynonce ) {
+	private function create_place_form( $place ) {
 		?>
 		<form  method="POST">
 			<input class="btn bt-md btn-primary mr-auto ml-auto d-block mt-2 mb-2"  type="submit" value="Select Place" name="selectPlace">
@@ -235,9 +228,7 @@ class Settings extends EdsMapBase {
 					<td><textarea 
 						class="w-250px"
 						type="text"
-						name="place_info"
-						value="<?php echo esc_html( $place->place_info ); ?>">
-						<?php echo esc_html( $place->place_info ); ?></textarea>
+						name="place_info"><?php echo esc_html( $place->place_info ); ?></textarea>
 					</td>
 				</tr>
 				<tr><td class="text-right mr-2"><label>Icon Name:</label></td>
@@ -271,7 +262,7 @@ class Settings extends EdsMapBase {
 					<td><input class="btn bt-md btn-primary mr-auto ml-auto"  type="submit" value="Submit" name="submitPlace"></td></tr>
 			</table>
 			<input type="hidden" name="place_id" value="<?php echo esc_html( $place->place_id ); ?>">
-			<input type="hidden" name="mynonce" value="<?php echo esc_html( $mynonce ); ?>">
+			<?php wp_nonce_field( 'places', 'mynonce' ); ?>
 		</form>
 		<?php
 	}
