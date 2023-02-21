@@ -26,8 +26,8 @@ class Keys extends EdsMapBase {
 			if ( isset( $post['submit'] ) ) {
 				$where = array( 'key_type' => $post['submit'] );
 				$key   = array( 'key_value' => $post[ $post['submit'] ] );
-				$rows = $wpdb->update(
-					self::MAP_KEY_TABLE,
+				$rows  = $wpdb->update(
+					$map_key_table,
 					$key,
 					$where
 				);
@@ -40,7 +40,7 @@ class Keys extends EdsMapBase {
 			}
 		}
 
-		$keys = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %1s;', self::MAP_KEY_TABLE ), OBJECT );
+		$keys = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %1s;', $map_key_table ), OBJECT );
 		?>
 		<form  method="POST">
 			<div id="content" class="container">

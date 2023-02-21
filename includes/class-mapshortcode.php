@@ -15,13 +15,13 @@
 class MapShortcode extends EdsMapBase {
 
 	/**
-	 * Creates the DB tables when the the plugin is activated.
+	 * Creates the DB tables when the the plugin is activated.f
 	 */
 	public function add_shortcode() {
 		global $wpdb;
-		$keys = $wpdb->get_results(
+		$keys   = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT * FROM %1s WHERE key_type = "map_key";',
+				'SELECT * FROM %1$s WHERE key_type = "map_key";',
 				self::MAP_KEY_TABLE
 			),
 			OBJECT
@@ -42,9 +42,14 @@ class MapShortcode extends EdsMapBase {
 		<script type="text/javascript">
 		var currentMarker = null;
 		var markerVisible = true;
+		var currentTrip = 1;
 		// The script element is created dynamically so I can add the "mapkey" variable to the src string.
 		// Dynamic scripts behave as “async” by default. 
-		document.addEventListener('DOMContentLoaded', () => {
+		document.addEventListener('DOMContentLoaded', (e) => {
+			document.getElementById('trip').addEventListener('change', () => { 
+				currentTrip = document.getElementById('trip').value;
+			});
+
 			document.head.appendChild(document.createElement('script'))
 				.src = "https://maps.googleapis.com/maps/api/js?key=" + '<?php echo esc_html( $mapkey ); ?>' + "&callback=initMap&v=weekly";
 		});
@@ -100,9 +105,9 @@ class MapShortcode extends EdsMapBase {
 
 		function populateMap(map) {
 			// TODO: This call will need to go to your website, not mine. :)
-			//var hostroot = 'http://localhost/wp';
-			var hostroot = 'https://edandlinda.com';
-			makeRequest(hostroot + '/wp-json/edsplaces/v1/places', function (data) {
+			var hostroot = 'http://localhost/wp';
+			//var hostroot = 'https://edandlinda.com';
+			makeRequest(hostroot + '/wp-json/edsplaces/v1/places?trip_id=' + currentTrip, function (data) {
 				var data = JSON.parse(data.response);
 				for (var i = 0; i < data.length; i++) {
 					var place = data[i];
@@ -110,18 +115,18 @@ class MapShortcode extends EdsMapBase {
 					var content = '<div class="infoWindow"><strong><a href=\"' + place.place_website + '\" >' + place.place_name + '</a></strong><br>'
 									+ "<a href='tel:" + place.place_phone +"'>" + place.place_phone + '</a>'
 									+ '<p>' + place.place_info + '</p><br>'
-									+ '<p>Arrive: ' + place.place_arrive + '</p>'
-									+ '<p>Depart: ' + place.place_depart + '</p></div>' ;
+									+ '<p>Arrive: ' + place.tp_arrive + '</p>'
+									+ '<p>Depart: ' + place.tp_depart + '</p></div>' ;
 					var position = new google.maps.LatLng(parseFloat(place.place_lat), parseFloat(place.place_lng));
 					var today = new Date();
-					var arriveDateParts = place.place_arrive.split('-');
+					var arriveDateParts = place.tp_arrive.split('-');
 					var arriveDate = new Date(
 						parseInt(arriveDateParts[0]),
 						parseInt(arriveDateParts[1] - 1),
 						parseInt(arriveDateParts[2])
 					);
 
-					var departDateParts = place.place_depart.split('-');
+					var departDateParts = place.tp_depart.split('-');
 					var departDate = new Date(
 						parseInt(departDateParts[0]),
 						parseInt(departDateParts[1] - 1),
@@ -136,8 +141,8 @@ class MapShortcode extends EdsMapBase {
 					marker = new google.maps.Marker({
 						position: position,
 						map,
-						title: place.place_name + '\nArrive: ' + place.place_arrive + '\nDepart: ' + place.place_depart,
-						label: place.place_label,
+						title: place.place_name + '\nArrive: ' + place.tp_arrive + '\nDepart: ' + place.tp_depart,
+						label: place.tp_label,
 						icon: iconPath,
 					});
 
@@ -154,7 +159,7 @@ class MapShortcode extends EdsMapBase {
 				}
 			});
 
-			makeRequest(hostroot + '/wp-json/edsroute/v1/points', function (data) {
+			makeRequest(hostroot + '/wp-json/edsroute/v1/points?trip_id=' + currentTrip, function (data) {
 				var data = JSON.parse(data.response);
 				var values = [];
 				for (var i = 0; i < data.length; i++) {
@@ -175,6 +180,11 @@ class MapShortcode extends EdsMapBase {
 		</script>
 		</head>
 		<body>
+			<div style="position: unset;">
+			<?php
+			$this->trip_select( '2' );
+			?>
+			</div>
 			<div id="mapdived" style="position: unset;"></div>
 		</body>
 		<?php

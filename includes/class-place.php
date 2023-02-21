@@ -105,4 +105,11 @@ class Place {
 	 * @var place_label.
 	 */
 	public $place_label;
+
+	/**
+	 * A number or leter lable to be displayed on the pushpin.
+	 *
+	 * @var place_trip_name.
+	 */
+	public $place_trip_name;
 }

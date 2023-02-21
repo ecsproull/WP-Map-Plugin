@@ -19,13 +19,18 @@ class RestApis extends EdsMapBase {
 	 *
 	 * @return array The results of the query.
 	 */
-	public function get_trip_points() {
+	public function get_trip_points( $request ) {
 		try {
 			global $wpdb, $places_table;
+			$trip_id = (int)$request->get_param( 'trip_id' );
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT * FROM %1s',
-					self::PLACES_TABLE
+					'SELECT * FROM %1$s P
+					LEFT JOIN %2$s M ON P.place_id = M.tp_place_id
+					WHERE  M.tp_trip_id = %3$d',
+					self::PLACES_TABLE,
+					self::TRIP_PLACES_TABLE,
+					$trip_id
 				),
 				OBJECT
 			);
@@ -42,14 +47,20 @@ class RestApis extends EdsMapBase {
 	 *
 	 * @return array The results of the query.
 	 */
-	public function get_route_points() {
+	public function get_route_points( $request ) {
 		global $wpdb, $places_table;
+		$trip_id = (int)$request->get_param( 'trip_id' );
 		try {
 			$router = new Routes();
 			$places = $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT * from %1s ORDER BY place_label;',
+					'SELECT * FROM %1$s P
+					LEFT JOIN %2$s M ON P.place_id = M.tp_place_id
+					WHERE  M.tp_trip_id = %3$d
+					ORDER BY cast(M.tp_arrive as DateTime)',
 					self::PLACES_TABLE,
+					self::TRIP_PLACES_TABLE,
+					$trip_id
 				),
 				OBJECT
 			);
@@ -60,7 +71,7 @@ class RestApis extends EdsMapBase {
 				$dt       = new DateTime( 'now', $timezone );
 				if ( $place_count > 1 ) {
 					for ( $i = 1; $i < $place_count; $i++ ) {
-						$dt2 = new DateTime( $places[ $i ]->place_arrive );
+						$dt2 = new DateTime( $places[ $i ]->tp_arrive );
 						if ( $dt > $dt2 ) {
 							$router->store_points( $places[ $i - 1 ]->place_lat, $places[ $i - 1 ]->place_lng, $places[ $i ]->place_lat, $places[ $i ]->place_lng );
 						}

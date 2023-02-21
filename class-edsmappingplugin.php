@@ -101,12 +101,18 @@ class EdsMappingPlugin {
 	 * that wp_enqueue_scripts adds scripts to the user side only.
 	 * I like using bootstrap but this is a personal preference.
 	 *
+	 * @param string $host The calling host.
 	 * @return void
 	 */
-	public function add_map_scripts_and_css() {
+	public function add_map_scripts_and_css( $host ) {
+		if ( 'toplevel_page_mapsettings' !== $host ) {
+			return;
+		}
+
 		wp_register_style( 'signup_bs_style', plugin_dir_url( __FILE__ ) . 'bootstrap/css/bootstrap.min.css', array(), 1 );
 		wp_enqueue_style( 'signup_bs_style' );
 		wp_register_style( 'signup_style', plugin_dir_url( __FILE__ ) . 'css/style.css', array(), 1 );
+		wp_enqueue_script( 'edsmap_script', plugins_url( 'js/edsmaps.js', __FILE__ ), array( 'jquery' ), '1.0.0.0', false );
 		wp_enqueue_style( 'signup_style' );
 	}
 }

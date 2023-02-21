@@ -3,7 +3,7 @@
  * Summary
  * Map settings.
  *
- * @package     Maps
+ * @package   Maps
  * @author      Edward Sproull
  * @copyright   You have the right to copy
  * @license     GPL-2.0+
@@ -31,6 +31,49 @@ class Settings extends EdsMapBase {
 	 * @return void
 	 */
 	public function map_settings() {
+		global $wpdb;
+
+		// TEMP TODO: remove this.
+		 /*$places = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * from %1s',
+				self::PLACES_TABLE
+			),
+			OBJECT
+		); // db call ok.
+
+		foreach ( $places as $place ) {
+			$tp = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT * from %1s where tp_place_id = %d',
+					self::TRIP_PLACES_TABLE,
+					$place->place_id
+				),
+				OBJECT
+			); // db call ok.
+
+			$tp_arr['tp_arrive'] = $place->place_arrive;
+			$tp_arr['tp_depart'] = $place->place_depart;
+			$tp_arr['tp_label']  = $place->place_label;
+
+			if ($tp) {
+				$where          = array();
+				$where['tp_id'] = intval( $tp[0]->tp_id );
+
+				$affected_rows  = $wpdb->update(
+					self::TRIP_PLACES_TABLE,
+					$tp_arr,
+					$where
+				);  // db call ok.
+			} else {
+				$tp_arr['tp_trip_id'] = 1;
+				$tp_arr['tp_place_id'] = $place->place_id;
+				$affected_rows = $wpdb->insert( self::TRIP_PLACES_TABLE, $tp_arr );
+			}
+		} */
+
+		// End TEMP.
+
 		$post = wp_unslash( $_POST );
 
 		if ( isset( $post['mynonce'] ) && wp_verify_nonce( $post['mynonce'], 'places' ) ) {
@@ -69,7 +112,7 @@ class Settings extends EdsMapBase {
 					$place_id
 				),
 				OBJECT
-			);
+			); // db call ok.
 
 			$this->create_place_form( $places[0] );
 		}
@@ -84,7 +127,7 @@ class Settings extends EdsMapBase {
 	 */
 	private function delete_place( $post ) {
 		global $wpdb;
-		$affected_rows = $wpdb->delete( self::PLACES_TABLE, array( 'place_id' => $post['deletePlace'] ) );
+		$affected_rows = $wpdb->delete( self::PLACES_TABLE, array( 'place_id' => $post['deletePlace'] ) );  // db call ok.
 		$this->update_map_message( $affected_rows );
 	}
 
@@ -104,9 +147,10 @@ class Settings extends EdsMapBase {
 
 		$affected_rows = 0;
 		unset( $post['submitPlace'] );
+		unset( $post['trip_name'] );
 		if ( '' === $post['place_id'] ) {
 			unset( $post['place_id'] );
-			$affected_rows = $wpdb->insert( self::PLACES_TABLE, $post );
+			$affected_rows = $wpdb->insert( self::PLACES_TABLE, $post );  // db call ok.
 		} else {
 			$where             = array();
 			$where['place_id'] = $post['place_id'];
@@ -115,7 +159,7 @@ class Settings extends EdsMapBase {
 				self::PLACES_TABLE,
 				$post,
 				$where
-			);
+			);  // db call ok.
 		}
 
 		$this->update_map_message( $affected_rows );
@@ -134,7 +178,7 @@ class Settings extends EdsMapBase {
 				self::PLACES_TABLE,
 			),
 			OBJECT
-		);
+		);  // db call ok.
 
 		return $places;
 	}
@@ -191,6 +235,12 @@ class Settings extends EdsMapBase {
 		<form  method="POST">
 			<div id="content" class="container">
 				<table class="mb-100px table table-striped mr-auto ml-auto">
+					<tr>
+						<td class="text-left mr-2"><label>Trip Name:</label></td>
+						<td>
+							<?php $this->trip_select( 2 ); ?>
+						</td>
+					</tr>
 					<?php
 					foreach ( $places as $place ) {
 						?>
@@ -218,10 +268,19 @@ class Settings extends EdsMapBase {
 	 * @return void
 	 */
 	private function create_place_form( $place ) {
+		global $wpdb;
 		?>
 		<form  method="POST">
 			<input class="btn bt-md btn-primary mr-auto ml-auto d-block mt-2 mb-2"  type="submit" value="Select Place" name="selectPlace">
 			<table class="table table-striped mr-auto ml-auto">
+				<tr>
+					<td class="text-right mr-2"><label>Trip Name:</label></td>
+					<td>
+						<?php
+						$this->trip_select( $this->get_trip_id( $place->place_id ) );
+						?>
+					</td>
+				</tr>
 				<tr><td class="text-right mr-2"><label>Place Name:</label></td>
 					<td><input class="w-250px"  type="text" name="place_name" value="<?php echo esc_html( $place->place_name ); ?>" /> </td></tr>
 				<tr><td class="text-right mr-2"><label>Place Info:</label></td>
@@ -233,14 +292,29 @@ class Settings extends EdsMapBase {
 				</tr>
 				<tr><td class="text-right mr-2"><label>Icon Name:</label></td>
 					<td><select id="icon" name="place_icon_type" value="<?php echo esc_html( $place->place_icon_type ); ?>">
-							<option value="0">Rv Park</option>
-							<option value="1">House</option>
-							<option value="2">Rest Stop</option>
+							<option value="0" 
+							<?php
+							if ( '0' === $place->place_icon_type ) {
+								echo 'selected';}
+							?>
+							>Rv Park</option>
+							<option value="1" 
+							<?php
+							if ( '1' === $place->place_icon_type ) {
+								echo 'selected';}
+							?>
+							>House</option>
+							<option value="2" 
+							<?php
+							if ( '2' === $place->place_icon_type ) {
+								echo 'selected';}
+							?>
+							>Rest Stop</option>
 							</select><td></tr>
 					<tr><td class="text-right mr-2"><label>Address: </label></td>
 					<td><input id="addr" class="w-250px"  type="text" name="place_address" value="<?php echo esc_html( $place->place_address ); ?>" onChange="updateLatLng()" /> </td></tr>
 				<tr><td class="text-right mr-2"><label>Phone:</label></td>
-					<td><input class="w-250px"  type="phone" name="place_phone" value="<?php echo esc_html( $place->place_phone ); ?>" placeholder="(888)888-8888" pattern="\([0-9]{3}\)[0-9]{3}-[0-9]{4}" /> </td></tr>
+					<td><input id="phone_input" class="w-250px"  type="phone" name="place_phone" value="<?php echo esc_html( $place->place_phone ); ?>" placeholder="(888)888-8888" pattern="\([0-9]{3}\)[0-9]{3}-[0-9]{4}" /> </td></tr>
 				<tr><td class="text-right mr-2"><label>Website:</label></td>
 					<td><input class="w-250px"  type="url" name="place_website" value="<?php echo esc_html( $place->place_website ); ?>" /> </td></tr>
 
@@ -276,20 +350,18 @@ class Settings extends EdsMapBase {
 	 */
 	public function add_lat_lng_script() {
 		global $wpdb;
-		$keys = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT * FROM %1s WHERE key_type = "geo_key";',
-				self::MAP_KEY_TABLE
-			),
+		$map_key_table = self::MAP_KEY_TABLE;
+		$keys          = $wpdb->get_results(
+			"SELECT * FROM $map_key_table WHERE key_type = 'geo_key'",
 			OBJECT
-		);
-		$map_key_geo = $keys[0]->key_value;
+		);  // db call ok.
+		$map_key_geo   = $keys[0]->key_value;
 		?>
 		<script>
 			function makeRequest(url, callback) {
 				var request;
 				if (window.XMLHttpRequest) {
-					request = new XMLHttpRequest(); // IE7+, Firefox, Chrome, Opera, Safari
+					request = new XMLHttpRequest(); 
 				} else {
 					request = new ActiveXObject("Microsoft.XMLHTTP"); // IE6, IE5
 				}
@@ -315,6 +387,34 @@ class Settings extends EdsMapBase {
 			}
 		</script>
 		<?php
+	}
+
+	/**
+	 * Get the trip name for a place Id
+	 *
+	 * @param int $place_id Place Id.
+	 * @return string Place name.
+	 */
+	private function get_trip_id( $place_id ) {
+		if ( ! $place_id ) {
+			return '';
+		}
+		global $wpdb;
+		$trip_name = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT T.trip_id 
+				FROM %1s T
+				LEFT JOIN %1s P
+				ON T.trip_id = P.tp_trip_id
+				where P.tp_place_id = %d',
+				self::TRIPS_TABLE,
+				self::TRIP_PLACES_TABLE,
+				$place_id,
+			),
+			OBJECT
+		);  // db call ok.
+
+		return $trip_name[0]->trip_id;
 	}
 }
 

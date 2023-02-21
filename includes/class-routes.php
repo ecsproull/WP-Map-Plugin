@@ -56,7 +56,7 @@ class Routes {
 	public function __construct() {
 		global $wpdb;
 		$this->my_wpdb = $wpdb;
-		$keys = $this->my_wpdb->get_results(
+		$keys          = $this->my_wpdb->get_results(
 			$this->my_wpdb->prepare(
 				'SELECT key_value FROM %1s WHERE key_type = "dir_key";',
 				$this->map_keys_table

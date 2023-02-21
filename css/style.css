@@ -48,14 +48,6 @@
     background-image:url(delete.png); 
 }
 
-.sessionsImage {
-    background-image:url(sessions.png);
-}
-
-.attendeesImage {
-    background-image:url(attendees.png);
-}
-
 .addItem {
     background-image:url(plusSmall.png);
 }
