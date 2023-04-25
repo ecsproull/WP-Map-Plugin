@@ -18,15 +18,7 @@ class MapShortcode extends EdsMapBase {
 	 * Creates the DB tables when the the plugin is activated.f
 	 */
 	public function add_shortcode() {
-		global $wpdb;
-		$keys   = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT * FROM %1$s WHERE key_type = "map_key";',
-				self::MAP_KEY_TABLE
-			),
-			OBJECT
-		);
-		$mapkey = $keys[0]->key_value;
+		$mapkey = $this->get_map_key( 'map_key' );
 		?>
 		<style>
 
@@ -40,14 +32,18 @@ class MapShortcode extends EdsMapBase {
 		</style>
 		<head>
 		<script type="text/javascript">
-		var currentMarker = null;
-		var markerVisible = true;
-		var currentTrip = 1;
+		var current_marker = null;
+		var marker_visible = true;
+		var current_trip_id = 1;
 		// The script element is created dynamically so I can add the "mapkey" variable to the src string.
 		// Dynamic scripts behave as “async” by default. 
 		document.addEventListener('DOMContentLoaded', (e) => {
 			document.getElementById('trip').addEventListener('change', () => { 
-				currentTrip = document.getElementById('trip').value;
+				current_trip_id = document.getElementById('trip').value;
+				var hostroot = location.href.replace('/eds-map/', '');
+				makeRequest(hostroot + '/wp-json/edsroute/v1/set_trip?trip_id=' + current_trip_id, function (data) {
+					initMap();
+				});
 			});
 
 			document.head.appendChild(document.createElement('script'))
@@ -91,23 +87,21 @@ class MapShortcode extends EdsMapBase {
 
 			populateMap(map);
 			setInterval(function () {
-				if (currentMarker) {
-					if (markerVisible) {
-						currentMarker.setOpacity(1.0);
+				if (current_marker) {
+					if (marker_visible) {
+						current_marker.setOpacity(1.0);
 					} else {
-						currentMarker.setOpacity(0.2);
+						current_marker.setOpacity(0.2);
 					}
 
-					markerVisible = ! markerVisible;
+					marker_visible = ! marker_visible;
 				}
 			}, 1000);
 		}
 
 		function populateMap(map) {
-			// TODO: This call will need to go to your website, not mine. :)
-			var hostroot = 'http://localhost/wp';
-			//var hostroot = 'https://edandlinda.com';
-			makeRequest(hostroot + '/wp-json/edsplaces/v1/places?trip_id=' + currentTrip, function (data) {
+			var hostroot = location.href.replace('/eds-map/', '');
+			makeRequest(hostroot + '/wp-json/edsplaces/v1/places', function (data) {
 				var data = JSON.parse(data.response);
 				for (var i = 0; i < data.length; i++) {
 					var place = data[i];
@@ -147,7 +141,7 @@ class MapShortcode extends EdsMapBase {
 					});
 
 					if (today >= arriveDate && today <= departDate) {
-						currentMarker = marker;
+						current_marker = marker;
 					}
 
 					google.maps.event.addListener(marker, 'click', (function (marker, content, infoWindow) {
@@ -159,7 +153,7 @@ class MapShortcode extends EdsMapBase {
 				}
 			});
 
-			makeRequest(hostroot + '/wp-json/edsroute/v1/points?trip_id=' + currentTrip, function (data) {
+			makeRequest(hostroot + '/wp-json/edsroute/v1/points', function (data) {
 				var data = JSON.parse(data.response);
 				var values = [];
 				for (var i = 0; i < data.length; i++) {
@@ -182,7 +176,7 @@ class MapShortcode extends EdsMapBase {
 		<body>
 			<div style="position: unset;">
 			<?php
-			$this->trip_select( '2' );
+			$this->trip_select( '1' );
 			?>
 			</div>
 			<div id="mapdived" style="position: unset;"></div>

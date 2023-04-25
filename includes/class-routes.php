@@ -12,7 +12,7 @@
 /**
  * Create points to be added to the map as a route.
  */
-class Routes {
+class Routes extends EdsMapBase {
 	/**
 	 * Route segment table name.
 	 *
@@ -74,16 +74,18 @@ class Routes {
 	 * @param  double $start_lng Start longitude.
 	 * @param  double $end_lat   End latitude.
 	 * @param  double $end_lng   End longitude.
+	 * @param  int    $trip_id   Trip id.
 	 * @return void
 	 */
-	public function store_points( $start_lat, $start_lng, $end_lat, $end_lng ) {
+	public function store_points( $start_lat, $start_lng, $end_lat, $end_lng, $trip_id, $place_1, $place_2 ) {
 		$segment_id = $start_lat . $start_lng . $end_lat . $end_lng;
 
 		$results = $this->my_wpdb->get_results(
 			$this->my_wpdb->prepare(
-				'SELECT * FROM %1s WHERE segment_id = %s',
+				'SELECT * FROM %1s WHERE segment_id = %s && segment_trip_id = %d',
 				$this->route_segments_table,
-				$segment_id
+				$segment_id,
+				$trip_id
 			),
 			OBJECT
 		);
@@ -120,6 +122,9 @@ class Routes {
 				'segment_end_lng'    => $end_lng,
 				'segment_dist_miles' => $miles,
 				'segment_time'       => $time,
+				'segment_trip_id'    => $trip_id,
+				'segment_place_1'    => $place_1,
+				'segment_place_2'    => $place_2
 			);
 
 			$rows_affected = $this->my_wpdb->insert( $this->route_segments_table, $insert_data );
@@ -132,13 +137,13 @@ class Routes {
 			$values = array();
 			foreach ( $coords as $point ) {
 				if ( 0 === ( $count % 20 ) ) {
-					$values[] = $this->my_wpdb->prepare( '(%s, %f, %f)', $segment_id, $point[0], $point[1] );
+					$values[] = $this->my_wpdb->prepare( '(%s, %f, %f, %d)', $segment_id, $point[0], $point[1], $trip_id );
 				}
 
 				$count++;
 			}
 
-			$query  = $this->my_wpdb->prepare( 'INSERT INTO %1s (points_segment_id, points_lat, points_lng) VALUES ', $this->route_segment_points_table );
+			$query  = $this->my_wpdb->prepare( 'INSERT INTO %1s (points_segment_id, points_lat, points_lng, points_trip_id) VALUES ', $this->route_segment_points_table );
 			$query .= implode( ",\n", $values );
 			$this->my_wpdb->query( $query );
 
@@ -149,13 +154,16 @@ class Routes {
 	/**
 	 * Get all of the route points in the db.
 	 *
+	 * @param int $trip_id Trip Id.
 	 * @return Array of points.
 	 */
-	public function get_route_points() {
+	public function get_route_points( $data ) {
+		$trip_id = $this->get_current_trip_id();
 		return $this->my_wpdb->get_results(
 			$this->my_wpdb->prepare(
-				'SELECT points_lat, points_lng FROM %1s',
-				$this->route_segment_points_table
+				'SELECT points_lat, points_lng FROM %1s WHERE points_trip_id = %2d',
+				$this->route_segment_points_table,
+				$trip_id
 			),
 			OBJECT
 		);

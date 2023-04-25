@@ -30,6 +30,7 @@ require 'includes/class-keys.php';
 require 'includes/class-restapis.php';
 require 'includes/class-mapshortcode.php';
 require 'includes/class-place.php';
+require 'includes/class-trip.php';
 require 'includes/class-routes.php';
 
 /**
@@ -58,6 +59,20 @@ class EdsMappingPlugin {
 			'rest_api_init',
 			function () {
 				$this->register_route( 'edsroute/v1', '/points', new RestApis(), 'get_route_points' );
+			}
+		);
+
+		add_action(
+			'rest_api_init',
+			function () {
+				$this->register_route( 'edsroute/v1', '/get_trip', new RestApis(), 'get_trip' );
+			}
+		);
+
+		add_action(
+			'rest_api_init',
+			function () {
+				$this->register_route( 'edsroute/v1', '/set_trip', new RestApis(), 'set_trip' );
 			}
 		);
 	}
@@ -105,7 +120,7 @@ class EdsMappingPlugin {
 	 * @return void
 	 */
 	public function add_map_scripts_and_css( $host ) {
-		if ( 'toplevel_page_mapsettings' !== $host ) {
+		if ( 'toplevel_page_mapsettings' !== $host && 'map-route_page_mapkeys' !== $host ) {
 			return;
 		}
 

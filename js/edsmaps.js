@@ -4,6 +4,12 @@ jQuery( document ).ready( function($){
         $( "#phone_input" ).val(formattedInputValue);
     });
 
+    $('#trip').change(function(){
+      if (typeof place_select_form != undefined) {
+        place_select_form.submit();
+      }
+  });
+
     function formatPhoneNumber(value) {
         if (!value) {
              return value;

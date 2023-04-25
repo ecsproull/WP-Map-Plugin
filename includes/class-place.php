@@ -23,6 +23,13 @@ class Place {
 	public $place_id;
 
 	/**
+	 * Trip and Places id.
+	 *
+	 * @var tp_id.
+	 */
+	public $tp_id;
+
+	/**
 	 * Place name.
 	 *
 	 * @var place_name.
@@ -83,14 +90,14 @@ class Place {
 	 *
 	 * @var place_arrive.
 	 */
-	public $place_arrive;
+	public $tp_arrive;
 
 	/**
 	 * Departure date.
 	 *
 	 * @var place_depart.
 	 */
-	public $place_depart;
+	public $tp_depart;
 
 	/**
 	 * Hide place info from public view.
@@ -104,12 +111,19 @@ class Place {
 	 *
 	 * @var place_label.
 	 */
-	public $place_label;
+	public $tp_label;
 
 	/**
-	 * A number or leter lable to be displayed on the pushpin.
+	 * The trip_name associated with this place.
 	 *
-	 * @var place_trip_name.
+	 * @var trip_name.
 	 */
-	public $place_trip_name;
+	public $trip_name;
+
+	/**
+	 * Whether to update or create new dates
+	 *
+	 * @var tp_dates.
+	 */
+	public $tp_dates = 'update';
 }
